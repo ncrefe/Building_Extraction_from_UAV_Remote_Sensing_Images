@@ -1,122 +1,142 @@
-# 🛰️ Building Extraction from UAV Remote Sensing Images
+# 🛰️  UAV Building Extraction via Classical Vision Methods
 
-This project focuses on **automatic building extraction** from a high-resolution UAV image using classical computer vision techniques. The workflow includes **segmentation, optimization-based refinement, and geometric vectorization** of building structures.
-
-The task is designed to be solved without machine learning, relying only on traditional image processing and optimization methods.
+This project focuses on extracting building footprints from high-resolution UAV imagery using classical computer vision techniques, without machine learning. The pipeline includes spectral analysis, segmentation, connected components, active contour refinement, and vectorization, followed by IoU evaluation.
 
 ---
 
-## 🚀 Objective
+## Objective
 
-Given a multi-band UAV image (NIR, Red, Green), the goal is to:
+Given a multi-band UAV image (NIR, Red, Green), the goal is:
 
-- Extract building regions automatically
-- Refine segmentation using an energy-based optimization approach
-- Convert final segmentation into vector polygons
-- Achieve high overlap with ground truth (IoU evaluation)
+* Segment building regions automatically
+* Refine segmentation using energy-based active contours
+* Convert raster output into vector polygons
+* Evaluate performance using IoU
 
-Target performance:
-- 🎯 IoU > 79%
+Results:
 
----
-
-## 🛠️ Tech Stack
-
-- Python 3.12  
-- NumPy 2.3.3  
-- OpenCV 4.11  
-- matplotlib  
-
-> ⚠️ Only allowed course libraries are used  
-> ⚠️ No machine learning methods are used
+* IoU (refined): 0.8814
+* IoU (vectorized): 0.8676
+* Target: > 0.79
 
 ---
 
-## 📂 Project Structure
+## Tech Stack
 
-    .
-    ├── data/
-    │   ├── img_mosaic.tif
-    │   ├── img_mosaic_label.tif
-    │   ├── img_mosaic_pred.tif
-    ├── q1_segmentation.py
-    ├── q2_energy_optimization.py
-    ├── q3_vectorization.py
-    ├── README.md
+* Python 3.12
+* OpenCV 4.11
+* NumPy 2.3.3
+* scikit-image
+* matplotlib
+
+Only classical image processing methods are used. No machine learning.
 
 ---
 
-## ⚙️ Installation
+## Project Structure
 
-    pip install numpy opencv-python matplotlib
+```
+.
+├── data/
+│   ├── img_mosaic.tif
+│   ├── img_mosaic_label.tif
+│   ├── img_mosaic_pred.tif
+├── segmentation.py
+├── energy_optimization.py
+├── vectorization.py
+├── README.md
+```
 
 ---
 
-## ▶️ Usage
-
-Run each step separately:
-
-    python q1_segmentation.py
-    python q2_energy_optimization.py
-    python q3_vectorization.py
-
----
-
-## 🧪 Implemented Tasks
+## Method Overview
 
 ### 1. Initial Segmentation
 
-- Load UAV image (NIR, Red, Green bands)
-- Apply classical segmentation techniques:
-  - Thresholding
-  - Clustering (non-ML methods allowed)
-  - Morphological operations
-- Generate initial building mask similar to baseline result
+* UAV image has NIR, Red, Green bands
+
+* Histogram analysis (16-bin) used for understanding distributions
+
+* Buildings detected using:
+
+  * Normalized red threshold
+  * Red–green dominance rule
+
+* Morphological operations:
+
+  * Opening → noise removal
+  * Closing → gap filling
+
+* K-means / clustering tested but unstable (fragmentation or merging issues)
+
+Final choice: threshold-based segmentation
 
 ---
 
-### 2. Energy-Based Refinement
+### 2. Refinement with Connected Components + Active Contours
 
-- Define a custom energy function **E**
-- Optimize segmentation using iterative minimization
-- Improve:
-  - Boundary quality
-  - Region consistency
-  - Noise removal
+* 8-connectivity used to extract components
+* Small regions removed by area filtering
+* Each building processed independently
 
-#### 📉 Goal
-- Minimization of energy → better building segmentation
+Bounding box strategy:
 
----
+* isolates buildings
+* prevents overlap interference
+* reduces computation
 
-### 3. Vectorization of Buildings
+Active contour (snake):
 
-- Convert binary segmentation mask into polygons
-- Extract geometric structures:
-  - Straight lines
-  - Right angles (≈90° constraint)
-- Generate vector map representation of buildings
+* minimizes energy:
 
----
+  * elasticity (smoothness)
+  * curvature (shape regularity)
+  * edge attraction
 
-## 📊 Evaluation
-
-- Compute **Intersection over Union (IoU)**:
-
-\[
-IoU = \frac{Prediction \cap GroundTruth}{Prediction \cup GroundTruth}
-\]
-
-- Compare predicted segmentation with:
-  - `img_mosaic_label.tif`
+Contour evolves toward strong gradients.
 
 ---
 
-## 📌 Notes
+### 3. Vectorization
 
-- Only classical image processing methods are used (no ML)
-- Code must be clean, modular, and reproducible
-- Final output must include:
-  - Refined segmentation image (`img_mosaic_pred.tif`)
-- Report should include visualizations similar to provided figures
-- Data folder is excluded from submission due to size
+* Contours extracted from refined mask
+* Simplified using Douglas–Peucker
+* Angle snapping:
+
+  * 0°, 90°, 180° enforced (±15° tolerance)
+* Small polygons removed
+
+Output:
+
+* Clean polygon-based building map
+
+---
+
+## Evaluation
+
+IoU defined as:
+
+IoU = (Prediction ∩ GroundTruth) / (Prediction ∪ GroundTruth)
+
+Ground truth extracted from labeled mask.
+
+Results:
+
+* Vectorized IoU: 0.8676
+* Refined IoU: 0.8814
+
+---
+
+## Key Insights
+
+* Red vs green contrast is highly informative
+* Morphological filtering improves spatial consistency
+* Active contours improve boundary accuracy
+* Vectorization enforces geometric regularity
+* Classical pipeline achieves strong performance without ML
+
+---
+
+## Conclusion
+
+A full classical vision pipeline successfully extracts building footprints from UAV imagery. The combination of spectral thresholds, morphological refinement, active contours, and vectorization produces accurate and geometrically consistent results, exceeding the required IoU threshold.
